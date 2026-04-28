@@ -34,7 +34,6 @@ function quantify(text: string, seed: number): string {
 }
 
 function buildHeadline(c: ResumeContent, type: UserType, target: string): string {
-  const name = c.personal?.full_name?.split(" ")[0] ?? "Candidate";
   const yrs = c.personal?.years_experience ?? 0;
 
   if (type === "fresher") {
@@ -74,7 +73,6 @@ export async function mockGenerate(
   const headline = buildHeadline(content, type, target);
   const sections: GeneratedResume["sections"] = [];
 
-  // Summary as its own section
   sections.push({
     title:
       type === "fresher" ? "OBJECTIVE" :
@@ -83,7 +81,6 @@ export async function mockGenerate(
     items: [{ body: headline }],
   });
 
-  // Core Competencies for professionals
   if (type === "professional") {
     const skills = [
       ...(content.skills?.technical ?? []),
@@ -101,7 +98,6 @@ export async function mockGenerate(
     });
   }
 
-  // Experience (intermediate / professional)
   if (type !== "fresher" && (content.experiences?.length ?? 0) > 0) {
     sections.push({
       title: type === "professional" ? "PROFESSIONAL EXPERIENCE" : "WORK EXPERIENCE",
@@ -109,7 +105,6 @@ export async function mockGenerate(
         const bullets = (exp.bullets ?? []).map((b, i) => {
           const verb = pick(verbs, idx + i);
           const trimmed = b.trim().replace(/^[-•\s]+/, "").replace(/^[a-z]/, (c) => c.toUpperCase());
-          // Replace any leading verb with one fitting the seniority
           const noLead = trimmed.replace(/^\w+\s/, "");
           const rewritten = `${verb} ${noLead}`;
           return quantify(rewritten, idx * 10 + i);
@@ -125,7 +120,6 @@ export async function mockGenerate(
     });
   }
 
-  // Projects (fresher primary; others if present)
   if ((content.projects?.length ?? 0) > 0) {
     sections.push({
       title: "PROJECTS",
@@ -145,7 +139,6 @@ export async function mockGenerate(
     });
   }
 
-  // Education
   if ((content.educations?.length ?? 0) > 0) {
     sections.push({
       title: "EDUCATION",
@@ -158,7 +151,6 @@ export async function mockGenerate(
     });
   }
 
-  // Skills
   const sk = content.skills;
   if (sk && (sk.technical?.length || sk.tools?.length || sk.soft?.length || sk.languages?.length)) {
     const items: GeneratedResume["sections"][0]["items"] = [];
@@ -169,7 +161,6 @@ export async function mockGenerate(
     sections.push({ title: "SKILLS", items });
   }
 
-  // Certifications
   if ((content.certifications?.length ?? 0) > 0) {
     sections.push({
       title: "CERTIFICATIONS",
@@ -181,7 +172,6 @@ export async function mockGenerate(
     });
   }
 
-  // Achievements
   if ((content.achievements?.length ?? 0) > 0) {
     sections.push({
       title: "KEY ACHIEVEMENTS",
@@ -192,45 +182,101 @@ export async function mockGenerate(
   return { headline, sections };
 }
 
+// Per-bullet rewriter — rewrites a single bullet in 3 styles, picks the best one
+export async function mockRewriteBullet(
+  original: string,
+  type: UserType,
+  context?: { targetRole?: string; jobTitle?: string }
+): Promise<{ variants: string[]; recommended: string }> {
+  // simulate latency
+  await new Promise((r) => setTimeout(r, 700 + Math.floor(Math.random() * 600)));
+
+  const verbs = ACTION_VERBS[type];
+  const cleaned = original.trim().replace(/^[-•\s]+/, "").replace(/\.$/, "");
+  const lower = cleaned.toLowerCase();
+  const stripLeadingVerb = (s: string) => s.replace(/^\w+\s+/, "");
+
+  const seed = original.length;
+  const v1 = quantify(`${pick(verbs, seed)} ${stripLeadingVerb(cleaned).replace(/^[a-z]/, (c) => c.toUpperCase())}`, seed);
+  const v2 = quantify(`${pick(verbs, seed + 1)} ${stripLeadingVerb(cleaned)} to drive measurable business impact`, seed + 3);
+  const v3 = quantify(`${pick(verbs, seed + 2)} ${stripLeadingVerb(cleaned)}, partnering cross-functionally to ship on time`, seed + 5);
+
+  const variants = [v1, v2, v3].map((s) => s.replace(/\s+/g, " ").replace(/^./, (c) => c.toUpperCase()));
+  const recommended = variants.reduce((a, b) => (a.length > b.length && a.length < 160 ? a : b));
+  return { variants, recommended };
+}
+
+export type AtsTip = {
+  severity: "critical" | "warning" | "suggestion";
+  category: "contact" | "keywords" | "skills" | "metrics" | "structure" | "polish";
+  text: string;
+  fix?: string;
+};
+
+export function calculateAtsScoreV2(
+  content: ResumeContent,
+  generated: GeneratedResume,
+  targetRole: string
+): { score: number; tips: AtsTip[] } {
+  let score = 50;
+  const tips: AtsTip[] = [];
+
+  if (content.personal?.email && content.personal?.phone) score += 10;
+  else tips.push({ severity: "critical", category: "contact", text: "Missing complete contact info — recruiters can't reach you.", fix: "Add both email and phone in Basics." });
+
+  if (!content.personal?.linkedin) {
+    tips.push({ severity: "warning", category: "contact", text: "No LinkedIn URL — 87% of recruiters check LinkedIn first.", fix: "Add your LinkedIn profile URL." });
+  } else score += 3;
+
+  score += Math.min(20, generated.sections.length * 3);
+  if (generated.sections.length < 4) {
+    tips.push({ severity: "warning", category: "structure", text: "Resume has too few sections.", fix: "Add Skills, Projects, or Certifications." });
+  }
+
+  const text = JSON.stringify(generated).toLowerCase();
+  const keywords = (targetRole || "").toLowerCase().split(/\s+/).filter((k) => k.length > 2);
+  const found = keywords.filter((k) => text.includes(k)).length;
+  score += Math.min(15, found * 5);
+  if (keywords.length && found < keywords.length) {
+    tips.push({ severity: "critical", category: "keywords", text: `Target role keywords missing — only ${found}/${keywords.length} found.`, fix: `Reinforce: "${targetRole}" in summary and bullets.` });
+  }
+
+  const skillCount =
+    (content.skills?.technical?.length ?? 0) +
+    (content.skills?.tools?.length ?? 0);
+  if (skillCount < 5) {
+    tips.push({ severity: "warning", category: "skills", text: "Fewer than 5 technical skills listed.", fix: "Add more relevant technical skills and tools." });
+  } else score += 5;
+
+  const allBullets = generated.sections.flatMap((s) => s.items.flatMap((i) => i.bullets ?? []));
+  const quantified = allBullets.filter((b) => /\d/.test(b)).length;
+  if (allBullets.length && quantified / allBullets.length < 0.5) {
+    tips.push({ severity: "critical", category: "metrics", text: "Less than half of your bullets contain metrics.", fix: "Quantify achievements with %, $, or counts." });
+  } else if (allBullets.length) {
+    score += 5;
+  }
+
+  // Length checks
+  const longBullets = allBullets.filter((b) => b.length > 200);
+  if (longBullets.length > 0) {
+    tips.push({ severity: "suggestion", category: "polish", text: `${longBullets.length} bullet(s) are too long (>200 chars).`, fix: "Trim verbose bullets to 80–150 characters." });
+  }
+
+  if (!content.personal?.summary && !generated.sections.some((s) => /summary|objective/i.test(s.title))) {
+    tips.push({ severity: "suggestion", category: "structure", text: "No professional summary.", fix: "Add a 2–3 sentence summary at the top." });
+  }
+
+  if (tips.length === 0) tips.push({ severity: "suggestion", category: "polish", text: "Looking great — tailor each version to a specific job description.", fix: "Save a copy per role and tweak keywords." });
+
+  return { score: Math.min(100, Math.max(0, score)), tips: tips.slice(0, 8) };
+}
+
+// Backwards-compat wrapper used by existing API routes
 export function calculateAtsScore(
   content: ResumeContent,
   generated: GeneratedResume,
   targetRole: string
 ): { score: number; tips: string[] } {
-  let score = 50;
-  const tips: string[] = [];
-
-  // contact info
-  if (content.personal?.email && content.personal?.phone) score += 10;
-  else tips.push("Add complete contact info (email + phone) at the top.");
-
-  // sections present
-  score += Math.min(20, generated.sections.length * 3);
-
-  // keywords (target role appears)
-  const text = JSON.stringify(generated).toLowerCase();
-  const keywords = targetRole.toLowerCase().split(/\s+/);
-  const found = keywords.filter((k) => k.length > 2 && text.includes(k)).length;
-  score += Math.min(15, found * 5);
-  if (found < keywords.length) tips.push(`Reinforce target role keywords: "${targetRole}".`);
-
-  // skills coverage
-  const skillCount =
-    (content.skills?.technical?.length ?? 0) +
-    (content.skills?.tools?.length ?? 0);
-  if (skillCount < 5) tips.push("Add at least 5 technical skills.");
-  else score += 5;
-
-  // bullet quantification
-  const allBullets = generated.sections.flatMap((s) => s.items.flatMap((i) => i.bullets ?? []));
-  const quantified = allBullets.filter((b) => /\d/.test(b)).length;
-  if (allBullets.length && quantified / allBullets.length < 0.5) {
-    tips.push("Quantify more achievements with metrics (numbers, %, $).");
-  } else if (allBullets.length) {
-    score += 5;
-  }
-
-  if (tips.length === 0) tips.push("Looking great — consider tailoring this to each job description.");
-
-  return { score: Math.min(100, Math.max(0, score)), tips: tips.slice(0, 5) };
+  const v2 = calculateAtsScoreV2(content, generated, targetRole);
+  return { score: v2.score, tips: v2.tips.map((t) => t.text) };
 }

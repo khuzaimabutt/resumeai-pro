@@ -1,14 +1,20 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { scoreColor } from "@/lib/utils";
-import ResumeRenderer from "@/components/resume-renderer";
+import ResumeRenderer, { type Template } from "@/components/resume-renderer";
 import RegenerateButton from "@/components/regenerate-button";
+import AtsScoreRing from "@/components/ats-score-ring";
+import ImprovementTips from "@/components/improvement-tips";
+import PreviewActions from "@/components/preview-actions";
 import type { GeneratedResume } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-export default async function PreviewPage({ params }: { params: { id: string } }) {
+const VALID_TEMPLATES: Template[] = ["modern", "classic", "compact", "executive"];
+
+export default async function PreviewPage({
+  params, searchParams,
+}: { params: { id: string }; searchParams: { tpl?: string } }) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
@@ -27,44 +33,46 @@ export default async function PreviewPage({ params }: { params: { id: string } }
   }
 
   const generated = resume.generated as GeneratedResume;
-  const tips = (resume.improvement_tips as string[] | null) ?? [];
+  const tips = (resume.improvement_tips as any[] | null) ?? [];
+  const tpl: Template = VALID_TEMPLATES.includes(searchParams.tpl as Template)
+    ? (searchParams.tpl as Template)
+    : "modern";
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+    <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
       <div className="card overflow-hidden p-0">
         <ResumeRenderer
           generated={generated}
           fullName={(resume.content as any)?.personal?.full_name ?? "Your Name"}
           contact={(resume.content as any)?.personal ?? {}}
           targetRole={resume.target_role ?? ""}
+          template={tpl}
         />
       </div>
 
       <aside className="space-y-4">
-        <div className="card">
-          <div className="text-xs uppercase tracking-wider text-slate-500">ATS Score</div>
-          <div className={`mt-3 inline-flex h-24 w-24 items-center justify-center rounded-full border-4 text-2xl font-bold ${scoreColor(resume.ats_score ?? 0)}`}>
-            {resume.ats_score ?? 0}
+        <div className="card text-center">
+          <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">ATS Score</div>
+          <div className="mt-3 flex justify-center">
+            <AtsScoreRing score={resume.ats_score ?? 0} />
           </div>
-          <div className="mt-3 text-sm text-slate-500">out of 100</div>
-
-          {tips.length > 0 && (
-            <>
-              <div className="mt-5 text-xs font-semibold uppercase tracking-wider text-slate-500">Improvement tips</div>
-              <ul className="mt-2 space-y-1.5 text-sm text-slate-700">
-                {tips.map((t, i) => <li key={i}>· {t}</li>)}
-              </ul>
-            </>
-          )}
+          <div className="mt-2 text-xs text-slate-500">
+            {(resume.ats_score ?? 0) >= 80 && "Strong — likely to pass screening"}
+            {(resume.ats_score ?? 0) >= 60 && (resume.ats_score ?? 0) < 80 && "Decent — apply the warnings below"}
+            {(resume.ats_score ?? 0) < 60 && "Needs work — address critical fixes first"}
+          </div>
         </div>
 
-        <div className="card space-y-2">
-          <a href={`/api/resumes/${resume.id}/pdf`} className="btn-primary w-full" target="_blank" rel="noopener">
-            ↓ Download PDF
-          </a>
-          <Link href={`/builder/${resume.id}`} className="btn-secondary w-full">Edit resume</Link>
-          <RegenerateButton id={resume.id} />
-        </div>
+        <PreviewActions id={resume.id} defaultTemplate={tpl} />
+
+        <RegenerateButton id={resume.id} />
+
+        {tips.length > 0 && (
+          <div className="card">
+            <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Improvement tips</div>
+            <ImprovementTips tips={tips} />
+          </div>
+        )}
       </aside>
     </div>
   );

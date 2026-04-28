@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { mockGenerate, calculateAtsScore } from "@/lib/ai/mock";
+import { mockGenerate, calculateAtsScoreV2 } from "@/lib/ai/mock";
 import type { UserType, ResumeContent } from "@/lib/types";
 
 export const maxDuration = 30;
@@ -28,7 +28,7 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
       resume.user_type as UserType,
       resume.target_role ?? "the role"
     );
-    const { score, tips } = calculateAtsScore(
+    const { score, tips } = calculateAtsScoreV2(
       resume.content as ResumeContent,
       generated,
       resume.target_role ?? ""
@@ -45,11 +45,10 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
       .update({ credits_remaining: profile.credits_remaining - 1 })
       .eq("id", user.id);
 
-    // Mock email log
     await supabase.from("email_logs").insert({
       to_email: user.email!,
       subject: `Your Resume is Ready — ATS Score: ${score}/100`,
-      body: `Hi, your resume has been generated successfully. ATS Score: ${score}/100. Tips: ${tips.join(" / ")}`,
+      body: `Hi, your resume has been generated successfully. ATS Score: ${score}/100. Top tip: ${tips[0]?.text ?? ""}`,
     });
 
     return NextResponse.json({ ok: true, ats_score: score });

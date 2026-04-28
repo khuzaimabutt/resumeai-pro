@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
 import type { UserType } from "@/lib/types";
 
 export default function NewResumeButton({
@@ -23,7 +24,7 @@ export default function NewResumeButton({
       if (!res.ok) throw new Error(data.error || "Failed");
       router.push(`/builder/${data.id}`);
     } catch (e: any) {
-      alert(e.message);
+      toast.error(e.message);
     } finally {
       setLoading(false);
     }

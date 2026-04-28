@@ -21,23 +21,85 @@ body {
 .fade-in { animation: fade 0.6s ease both; }
 @keyframes fade { from { opacity: 0; transform: translateY(8px);} to { opacity: 1; transform: none;} }
 
+.fade-in-delay-1 { animation: fade 0.6s ease 0.1s both; }
+.fade-in-delay-2 { animation: fade 0.6s ease 0.2s both; }
+.fade-in-delay-3 { animation: fade 0.6s ease 0.3s both; }
+.fade-in-delay-4 { animation: fade 0.6s ease 0.4s both; }
+
+@keyframes float-up {
+  0% { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.float-up { animation: float-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+.pulse-soft { animation: pulse-soft 2s ease-in-out infinite; }
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.shimmer {
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 37%, #e2e8f0 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: 6px;
+}
+
 .btn-primary {
-  @apply inline-flex items-center justify-center rounded-lg bg-brand px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700 transition;
+  @apply inline-flex items-center justify-center rounded-lg bg-brand px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700 active:scale-[0.98] transition disabled:opacity-50 disabled:cursor-not-allowed;
 }
 .btn-ghost {
-  @apply inline-flex items-center justify-center rounded-lg px-5 py-2.5 text-sm font-medium border border-white/15 text-white hover:bg-white/5 transition;
+  @apply inline-flex items-center justify-center rounded-lg px-5 py-2.5 text-sm font-medium border border-white/15 text-white hover:bg-white/5 active:scale-[0.98] transition disabled:opacity-50;
 }
 .btn-secondary {
-  @apply inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition;
+  @apply inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 active:scale-[0.98] transition disabled:opacity-50;
+}
+.btn-danger {
+  @apply inline-flex items-center justify-center rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 active:scale-[0.98] transition disabled:opacity-50;
 }
 .input {
-  @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30;
+  @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30 transition;
 }
 .label { @apply mb-1 block text-sm font-medium text-slate-700; }
 .card { @apply rounded-xl border border-slate-200 bg-white p-6 shadow-sm; }
+
+.card-hover {
+  @apply transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 hover:border-brand/40;
+}
+
+/* Scrollbar styling */
+.thin-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+.thin-scroll::-webkit-scrollbar-track { background: transparent; }
+.thin-scroll::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 3px; }
+.thin-scroll::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.35); }
+
+/* Resume paper preview */
+.resume-paper { font-feature-settings: "kern" 1; }
 
 /* PDF print styles */
 @media print {
   .no-print { display: none !important; }
   body { background: white; }
 }
+
+/* Marquee for trusted-by strip */
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 30s linear infinite;
+}
+.marquee:hover { animation-play-state: paused; }

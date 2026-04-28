@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import type { ResumeContent, UserType } from "@/lib/types";
 
 type Resume = {
@@ -23,24 +24,24 @@ export default function BuilderForm({ resume, profile }: { resume: Resume; profi
   const [targetRole, setTargetRole] = useState(resume.target_role ?? "");
   const [userType, setUserType] = useState<UserType>(resume.user_type);
   const [content, setContent] = useState<ResumeContent>(() => seedContent(resume.content, profile));
-  const [saving, setSaving] = useState(false);
+  const [savingState, setSavingState] = useState<"idle" | "saving" | "saved">("idle");
   const [generating, setGenerating] = useState(false);
   const [genMessage, setGenMessage] = useState("");
+  const [genStep, setGenStep] = useState(0);
   const lastSaved = useRef<string>("");
 
-  // Autosave every ~1.5s after typing stops
   useEffect(() => {
     const payload = JSON.stringify({ title, targetRole, userType, content });
     if (payload === lastSaved.current) return;
+    setSavingState("saving");
     const timer = setTimeout(async () => {
-      setSaving(true);
       const res = await fetch(`/api/resumes/${resume.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title, target_role: targetRole, user_type: userType, content }),
       });
-      if (res.ok) lastSaved.current = payload;
-      setSaving(false);
+      if (res.ok) { lastSaved.current = payload; setSavingState("saved"); }
+      else setSavingState("idle");
     }, 1500);
     return () => clearTimeout(timer);
   }, [title, targetRole, userType, content, resume.id]);
@@ -56,21 +57,28 @@ export default function BuilderForm({ resume, profile }: { resume: Resume; profi
   }, [content, targetRole]);
 
   async function generate() {
-    if (!targetRole) { alert("Please enter a target role first."); setTab("Basics"); return; }
+    if (!targetRole) {
+      toast.error("Please enter a target role first.");
+      setTab("Basics");
+      return;
+    }
+    if (profile.credits_remaining <= 0) {
+      toast.error("Out of credits", { description: "Visit Pricing to add more." });
+      return;
+    }
     setGenerating(true);
     const messages = [
-      "Reading your details...",
-      "Choosing the best words...",
-      "Optimizing for ATS systems...",
-      "Adding the finishing touches...",
-      "Almost ready...",
+      "Reading your details…",
+      "Choosing the best words…",
+      "Optimizing for ATS systems…",
+      "Adding the finishing touches…",
+      "Almost ready…",
     ];
     let i = 0;
-    setGenMessage(messages[0]);
-    const cycle = setInterval(() => { i = (i + 1) % messages.length; setGenMessage(messages[i]); }, 1200);
+    setGenMessage(messages[0]); setGenStep(0);
+    const cycle = setInterval(() => { i = Math.min(i + 1, messages.length - 1); setGenMessage(messages[i]); setGenStep(i); }, 1200);
 
     try {
-      // Save first
       await fetch(`/api/resumes/${resume.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -81,7 +89,7 @@ export default function BuilderForm({ resume, profile }: { resume: Resume; profi
       if (!res.ok) throw new Error(data.error || "Generation failed");
       router.push(`/preview/${resume.id}`);
     } catch (e: any) {
-      alert(e.message);
+      toast.error(e.message);
       setGenerating(false);
     } finally {
       clearInterval(cycle);
@@ -89,11 +97,22 @@ export default function BuilderForm({ resume, profile }: { resume: Resume; profi
   }
 
   if (generating) {
+    const steps = ["Reading", "Rewriting", "Optimizing", "Polishing", "Finishing"];
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
-        <div className="mb-6 inline-block h-14 w-14 animate-spin rounded-full border-4 border-brand/20 border-t-brand" />
-        <h2 className="font-display text-2xl font-bold">Generating your resume...</h2>
-        <p className="mt-2 text-slate-600">{genMessage}</p>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm">
+        <div className="w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-2xl float-up">
+          <div className="mx-auto mb-6 inline-block h-14 w-14 animate-spin rounded-full border-4 border-brand/20 border-t-brand" />
+          <h2 className="font-display text-xl font-bold">Generating your resume</h2>
+          <p className="mt-2 text-sm text-slate-600">{genMessage}</p>
+          <div className="mt-6 flex items-center justify-between">
+            {steps.map((s, i) => (
+              <div key={s} className="flex flex-col items-center gap-1 flex-1">
+                <div className={`h-2 w-2 rounded-full ${i <= genStep ? "bg-brand" : "bg-slate-200"}`} />
+                <span className={`text-[10px] uppercase tracking-wider ${i <= genStep ? "text-brand" : "text-slate-400"}`}>{s}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -111,8 +130,14 @@ export default function BuilderForm({ resume, profile }: { resume: Resume; profi
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Resume title"
             />
-            <div className="flex items-center gap-2 text-xs text-slate-500">
-              {saving ? "Saving..." : "Saved ✓"} · {completeness}% complete
+            <div className="flex items-center gap-3 text-xs text-slate-500">
+              <SaveStatus state={savingState} />
+              <div className="flex items-center gap-1.5">
+                <div className="relative h-1.5 w-24 overflow-hidden rounded-full bg-slate-200">
+                  <div className="h-full bg-brand transition-all" style={{ width: `${completeness}%` }} />
+                </div>
+                <span className="font-medium text-slate-600">{completeness}%</span>
+              </div>
             </div>
           </div>
 
@@ -134,17 +159,17 @@ export default function BuilderForm({ resume, profile }: { resume: Resume; profi
 
         {/* Tabs */}
         <div className="card">
-          <div className="mb-4 flex flex-wrap gap-1 border-b border-slate-200">
+          <div className="mb-4 flex flex-wrap gap-1 rounded-lg bg-slate-100 p-1">
             {TABS.map((t) => (
               <button key={t} onClick={() => setTab(t)}
-                className={`px-4 py-2 text-sm font-medium transition ${tab === t ? "border-b-2 border-brand text-brand" : "text-slate-500 hover:text-slate-900"}`}>
+                className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition ${tab === t ? "bg-white text-brand shadow-sm" : "text-slate-600 hover:text-slate-900"}`}>
                 {t}
               </button>
             ))}
           </div>
 
           {tab === "Basics" && <BasicsTab content={content} setContent={setContent} userType={userType} />}
-          {tab === "Experience" && <ExperienceTab content={content} setContent={setContent} userType={userType} />}
+          {tab === "Experience" && <ExperienceTab content={content} setContent={setContent} userType={userType} targetRole={targetRole} />}
           {tab === "Education" && <EducationTab content={content} setContent={setContent} />}
           {tab === "Skills" && <SkillsTab content={content} setContent={setContent} />}
           {tab === "Extras" && <ExtrasTab content={content} setContent={setContent} />}
@@ -166,13 +191,27 @@ export default function BuilderForm({ resume, profile }: { resume: Resume; profi
 
       {/* Right: live preview */}
       <aside className="lg:sticky lg:top-20 lg:h-[calc(100vh-6rem)]">
-        <div className="card h-full overflow-auto">
-          <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Live preview</div>
-          <LivePreview content={content} userType={userType} targetRole={targetRole} />
+        <div className="card flex h-full flex-col overflow-hidden">
+          <div className="mb-3 flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <span>Live preview</span>
+            <span className="text-[10px] font-normal normal-case text-slate-400">Updates as you type</span>
+          </div>
+          <div className="flex-1 overflow-auto thin-scroll rounded-md bg-slate-50 p-4">
+            <LivePreview content={content} userType={userType} targetRole={targetRole} />
+          </div>
         </div>
       </aside>
     </div>
   );
+}
+
+function SaveStatus({ state }: { state: "idle" | "saving" | "saved" }) {
+  if (state === "saving") return <span className="inline-flex items-center gap-1.5 text-amber-600"><Dot color="bg-amber-500 pulse-soft" /> Saving…</span>;
+  if (state === "saved") return <span className="inline-flex items-center gap-1.5 text-green-600"><Dot color="bg-green-500" /> Saved</span>;
+  return <span className="inline-flex items-center gap-1.5 text-slate-500"><Dot color="bg-slate-300" /> Idle</span>;
+}
+function Dot({ color }: { color: string }) {
+  return <span className={`h-1.5 w-1.5 rounded-full ${color}`} />;
 }
 
 function seedContent(c: ResumeContent, p: Profile): ResumeContent {
@@ -234,31 +273,37 @@ function BasicsTab({
 }
 
 function ExperienceTab({
-  content, setContent, userType,
-}: { content: ResumeContent; setContent: (c: ResumeContent) => void; userType: UserType }) {
+  content, setContent, userType, targetRole,
+}: { content: ResumeContent; setContent: (c: ResumeContent) => void; userType: UserType; targetRole: string }) {
   if (userType === "fresher") {
-    return <ProjectsEditor content={content} setContent={setContent} />;
+    return <ProjectsEditor content={content} setContent={setContent} userType={userType} targetRole={targetRole} />;
   }
-  return <ExperiencesEditor content={content} setContent={setContent} />;
+  return <ExperiencesEditor content={content} setContent={setContent} userType={userType} targetRole={targetRole} />;
 }
 
-function ProjectsEditor({ content, setContent }: { content: ResumeContent; setContent: (c: ResumeContent) => void }) {
+function ProjectsEditor({ content, setContent, userType, targetRole }: { content: ResumeContent; setContent: (c: ResumeContent) => void; userType: UserType; targetRole: string }) {
   const projects = content.projects ?? [];
   const update = (next: typeof projects) => setContent({ ...content, projects: next });
 
   return (
     <div className="space-y-4">
-      <p className="rounded-md bg-blue-50 px-3 py-2 text-sm text-blue-900">
+      <div className="rounded-md bg-blue-50 px-3 py-2 text-sm text-blue-900">
         💡 Your projects ARE your experience. Add every significant one.
-      </p>
+      </div>
       {projects.map((p, i) => (
         <div key={i} className="rounded-lg border border-slate-200 p-4">
           <div className="grid gap-3 md:grid-cols-2">
             <input className="input" placeholder="Project name" value={p.name} onChange={(e) => { const n = [...projects]; n[i] = { ...p, name: e.target.value }; update(n); }} />
             <input className="input" placeholder="Live URL (optional)" value={p.url ?? ""} onChange={(e) => { const n = [...projects]; n[i] = { ...p, url: e.target.value }; update(n); }} />
           </div>
-          <textarea className="input mt-3" placeholder="What does it do? Why does it matter?" rows={2}
-            value={p.description ?? ""} onChange={(e) => { const n = [...projects]; n[i] = { ...p, description: e.target.value }; update(n); }} />
+          <BulletEditor
+            label="What does it do? Why does it matter?"
+            value={p.description ? [p.description] : []}
+            onChange={(v) => { const n = [...projects]; n[i] = { ...p, description: v[0] ?? "" }; update(n); }}
+            userType={userType}
+            targetRole={targetRole}
+            singleLine
+          />
           <TagInput label="Technologies" value={p.technologies ?? []} onChange={(tags) => { const n = [...projects]; n[i] = { ...p, technologies: tags }; update(n); }} />
           <button className="mt-3 text-sm text-red-500 hover:underline" onClick={() => update(projects.filter((_, j) => j !== i))}>Remove</button>
         </div>
@@ -268,7 +313,7 @@ function ProjectsEditor({ content, setContent }: { content: ResumeContent; setCo
   );
 }
 
-function ExperiencesEditor({ content, setContent }: { content: ResumeContent; setContent: (c: ResumeContent) => void }) {
+function ExperiencesEditor({ content, setContent, userType, targetRole }: { content: ResumeContent; setContent: (c: ResumeContent) => void; userType: UserType; targetRole: string }) {
   const exps = content.experiences ?? [];
   const update = (next: typeof exps) => setContent({ ...content, experiences: next });
 
@@ -282,7 +327,13 @@ function ExperiencesEditor({ content, setContent }: { content: ResumeContent; se
             <input className="input" placeholder="Start date (MM/YYYY)" value={e.start_date ?? ""} onChange={(ev) => { const n = [...exps]; n[i] = { ...e, start_date: ev.target.value }; update(n); }} />
             <input className="input" placeholder="End date or 'Present'" value={e.end_date ?? ""} onChange={(ev) => { const n = [...exps]; n[i] = { ...e, end_date: ev.target.value }; update(n); }} />
           </div>
-          <BulletEditor label="Responsibilities & achievements" value={e.bullets ?? []} onChange={(b) => { const n = [...exps]; n[i] = { ...e, bullets: b }; update(n); }} />
+          <BulletEditor
+            label="Responsibilities & achievements"
+            value={e.bullets ?? []}
+            onChange={(b) => { const n = [...exps]; n[i] = { ...e, bullets: b }; update(n); }}
+            userType={userType}
+            targetRole={targetRole}
+          />
           <TagInput label="Technologies / tools" value={e.technologies ?? []} onChange={(t) => { const n = [...exps]; n[i] = { ...e, technologies: t }; update(n); }} />
           <button className="mt-3 text-sm text-red-500 hover:underline" onClick={() => update(exps.filter((_, j) => j !== i))}>Remove</button>
         </div>
@@ -364,7 +415,7 @@ function TagInput({ label, value, onChange }: { label: string; value: string[]; 
   return (
     <div className="mt-3">
       <label className="label">{label}</label>
-      <div className="flex flex-wrap gap-1.5 rounded-lg border border-slate-300 bg-white px-2 py-2">
+      <div className="flex flex-wrap gap-1.5 rounded-lg border border-slate-300 bg-white px-2 py-2 focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20 transition">
         {value.map((t, i) => (
           <span key={i} className="inline-flex items-center gap-1 rounded-md bg-brand/10 px-2 py-0.5 text-xs text-brand">
             {t}
@@ -391,19 +442,73 @@ function TagInput({ label, value, onChange }: { label: string; value: string[]; 
   );
 }
 
-function BulletEditor({ label, value, onChange }: { label: string; value: string[]; onChange: (v: string[]) => void }) {
+function BulletEditor({
+  label, value, onChange, userType, targetRole, singleLine,
+}: {
+  label: string; value: string[]; onChange: (v: string[]) => void;
+  userType: UserType; targetRole: string; singleLine?: boolean;
+}) {
+  const [busyIdx, setBusyIdx] = useState<number | null>(null);
+
+  async function rewrite(idx: number) {
+    const original = value[idx]?.trim();
+    if (!original) { toast.error("Write something first."); return; }
+    setBusyIdx(idx);
+    try {
+      const res = await fetch("/api/ai/rewrite-bullet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ original, user_type: userType, target_role: targetRole }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Rewrite failed");
+      const next = [...value];
+      next[idx] = data.recommended;
+      onChange(next);
+      toast.success("Improved with AI ✨");
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setBusyIdx(null);
+    }
+  }
+
   return (
     <div className="mt-3">
       <label className="label">{label}</label>
       <div className="space-y-2">
-        {value.map((b, i) => (
-          <div key={i} className="flex gap-2">
-            <textarea className="input min-h-[44px]" value={b} onChange={(e) => { const n = [...value]; n[i] = e.target.value; onChange(n); }} />
-            <button className="text-red-500" onClick={() => onChange(value.filter((_, j) => j !== i))}>×</button>
-          </div>
-        ))}
+        {value.map((b, i) => {
+          const len = b.length;
+          const lenColor = len > 200 ? "text-red-500" : len > 150 ? "text-amber-500" : len > 60 ? "text-green-600" : "text-slate-400";
+          return (
+            <div key={i} className="rounded-lg border border-slate-200 bg-white">
+              <textarea
+                className="w-full resize-none rounded-t-lg border-none bg-transparent px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-0"
+                rows={singleLine ? 2 : 2}
+                value={b}
+                onChange={(e) => { const n = [...value]; n[i] = e.target.value; onChange(n); }}
+                placeholder="Describe an achievement, with metrics if possible…"
+              />
+              <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50 px-2 py-1.5 rounded-b-lg">
+                <button
+                  type="button"
+                  onClick={() => rewrite(i)}
+                  disabled={busyIdx === i}
+                  className="inline-flex items-center gap-1 rounded-md bg-gradient-to-r from-brand to-brand/80 px-2 py-1 text-[11px] font-medium text-white shadow-sm transition hover:opacity-90 disabled:opacity-50"
+                >
+                  {busyIdx === i ? "✨ Improving…" : "✨ Improve with AI"}
+                </button>
+                <div className="flex items-center gap-3">
+                  <span className={`text-[11px] ${lenColor}`}>{len} chars{len > 200 ? " · too long" : len < 60 ? " · short" : ""}</span>
+                  <button type="button" onClick={() => onChange(value.filter((_, j) => j !== i))} className="text-xs text-red-500 hover:underline">Remove</button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
-      <button className="btn-secondary mt-2" onClick={() => onChange([...value, ""])}>+ Add bullet</button>
+      {!singleLine && <button type="button" className="btn-secondary mt-2" onClick={() => onChange([...value, ""])}>+ Add bullet</button>}
+      {singleLine && value.length === 0 && <button type="button" className="btn-secondary mt-2" onClick={() => onChange([""])}>+ Add description</button>}
     </div>
   );
 }
@@ -413,11 +518,11 @@ function BulletEditor({ label, value, onChange }: { label: string; value: string
 function LivePreview({ content, userType, targetRole }: { content: ResumeContent; userType: UserType; targetRole: string }) {
   const p = content.personal ?? {};
   return (
-    <div className="origin-top scale-[0.85] text-[11px] text-slate-800 transform-gpu">
+    <div className="origin-top text-[12px] text-slate-800">
       <div className="rounded-lg bg-white p-6 shadow-sm">
         <div className="border-b pb-3">
           <div className="font-display text-xl font-bold">{p.full_name || "Your Name"}</div>
-          <div className="text-xs text-slate-500">{targetRole || "Target Role"}</div>
+          <div className="text-xs text-brand font-semibold uppercase tracking-widest">{targetRole || "Target Role"}</div>
           <div className="mt-1 flex flex-wrap gap-x-3 text-[10px] text-slate-500">
             {p.email && <span>{p.email}</span>}
             {p.phone && <span>· {p.phone}</span>}

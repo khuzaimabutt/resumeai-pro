@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { formatDate, scoreColor } from "@/lib/utils";
 import NewResumeButton from "@/components/new-resume-button";
+import DashboardResumes from "@/components/dashboard-resumes";
 
 export const dynamic = "force-dynamic";
 
@@ -19,10 +19,15 @@ export default async function DashboardPage() {
     .eq("is_deleted", false)
     .order("created_at", { ascending: false });
 
-  const totalResumes = resumes?.length ?? 0;
-  const avgAts = resumes?.length
-    ? Math.round(resumes.reduce((s, r) => s + (r.ats_score ?? 0), 0) / resumes.filter((r) => r.ats_score).length || 0)
+  const list = resumes ?? [];
+  const totalResumes = list.length;
+  const scored = list.filter((r) => r.ats_score != null);
+  const avgAts = scored.length
+    ? Math.round(scored.reduce((s, r) => s + (r.ats_score ?? 0), 0) / scored.length)
     : 0;
+  const lastDraft = list.find((r) => r.status === "draft");
+  const recentlyGenerated = list.find((r) => r.status === "generated");
+  const continueResume = lastDraft ?? recentlyGenerated;
 
   return (
     <div className="space-y-8">
@@ -40,6 +45,23 @@ export default async function DashboardPage() {
         <NewResumeButton userType={profile?.user_type ?? "fresher"} />
       </div>
 
+      {/* Continue card */}
+      {continueResume && (
+        <div className="card flex flex-col items-start gap-3 border-brand/30 bg-gradient-to-br from-brand/5 to-transparent md:flex-row md:items-center md:justify-between">
+          <div>
+            <div className="text-xs uppercase tracking-widest text-brand">{lastDraft ? "Continue where you left off" : "Most recent"}</div>
+            <div className="mt-1 font-display text-lg font-semibold">{continueResume.title}</div>
+            <div className="text-sm text-slate-500">{continueResume.target_role || "No target role yet"}</div>
+          </div>
+          <Link
+            href={lastDraft ? `/builder/${continueResume.id}` : `/preview/${continueResume.id}`}
+            className="btn-primary"
+          >
+            {lastDraft ? "Resume editing" : "Open resume"} →
+          </Link>
+        </div>
+      )}
+
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4">
         <Stat label="Resumes Created" value={totalResumes} />
@@ -48,44 +70,19 @@ export default async function DashboardPage() {
         <Stat label="Plan" value={(profile?.plan ?? "free").replace("_", " ")} capitalize />
       </div>
 
-      {/* Resumes */}
-      <section>
-        <h2 className="mb-4 font-display text-xl font-semibold">My Resumes</h2>
-        {(!resumes || resumes.length === 0) ? (
-          <div className="card flex flex-col items-center py-16 text-center">
-            <div className="mb-4 text-5xl">📄</div>
-            <h3 className="font-display text-xl font-semibold">No resumes yet</h3>
-            <p className="mt-1 text-sm text-slate-500">Create your first resume to get started.</p>
-            <NewResumeButton userType={profile?.user_type ?? "fresher"} className="mt-6" />
+      {(profile?.plan ?? "free") === "free" && (
+        <div className="rounded-xl border border-gold/30 bg-gradient-to-r from-gold/10 via-brand/5 to-transparent p-4 text-sm">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <div className="font-semibold">You're on the Free plan</div>
+              <div className="text-slate-600">Upgrade for unlimited resumes, all templates, and priority AI.</div>
+            </div>
+            <Link href="/pricing" className="btn-primary shrink-0">See plans</Link>
           </div>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-3">
-            {resumes.map((r) => (
-              <Link key={r.id} href={`/preview/${r.id}`} className="card transition hover:shadow-md">
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs capitalize text-slate-700">{r.user_type}</span>
-                  <span className={`rounded-full border px-2 py-0.5 text-xs ${
-                    r.status === "generated" ? "border-green-200 bg-green-50 text-green-700" :
-                    r.status === "draft" ? "border-slate-200 bg-slate-50 text-slate-600" :
-                    r.status === "generating" ? "border-blue-200 bg-blue-50 text-blue-700" :
-                    "border-red-200 bg-red-50 text-red-700"
-                  }`}>{r.status}</span>
-                </div>
-                <h3 className="font-display text-lg font-semibold">{r.title}</h3>
-                <p className="text-sm text-slate-500">{r.target_role || "—"}</p>
-                <div className="mt-4 flex items-center justify-between">
-                  {r.ats_score != null ? (
-                    <span className={`rounded-md border px-2 py-0.5 text-xs font-medium ${scoreColor(r.ats_score)}`}>
-                      ATS {r.ats_score}/100
-                    </span>
-                  ) : <span className="text-xs text-slate-400">Not generated yet</span>}
-                  <span className="text-xs text-slate-400">{formatDate(r.created_at)}</span>
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
-      </section>
+        </div>
+      )}
+
+      <DashboardResumes resumes={list} userType={profile?.user_type ?? "fresher"} />
     </div>
   );
 }
