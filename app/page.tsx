@@ -85,7 +85,7 @@ export default function LandingPage() {
       </section>
 
       {/* How it works */}
-      <section className="bg-white/[0.02] py-20">
+      <section className="py-20">
         <div className="mx-auto max-w-6xl px-6">
           <SectionHeader eyebrow="How it works" title="Three Steps to Your Perfect Resume" />
           <div className="mt-12 grid gap-6 md:grid-cols-3">
@@ -110,7 +110,7 @@ export default function LandingPage() {
       </section>
 
       {/* Pricing */}
-      <section id="pricing" className="bg-white/[0.02] py-20">
+      <section id="pricing" className="py-20">
         <div className="mx-auto max-w-6xl px-6">
           <SectionHeader eyebrow="Pricing" title="Simple, Transparent Pricing" />
           <div className="mt-12 grid gap-5 md:grid-cols-4">
