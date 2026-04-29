@@ -353,7 +353,7 @@ function Faq() {
 
 function FinalCta() {
   return (
-    <section className="bg-gradient-to-br from-brand/40 to-gold/20 py-20">
+    <section className="bg-gradient-to-br from-brand/40 to-gold/20 bg-fixed py-20">
       <div className="mx-auto max-w-3xl px-6 text-center">
         <h2 className="font-display text-4xl font-bold md:text-5xl">Ready to Land Your Dream Job?</h2>
         <p className="mt-4 text-white/80">No credit card required. Build your first resume in 60 seconds.</p>
