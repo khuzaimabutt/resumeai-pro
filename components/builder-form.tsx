@@ -288,10 +288,11 @@ function ProjectsEditor({ content, setContent, userType, targetRole }: { content
   return (
     <div className="space-y-4">
       <div className="rounded-md bg-blue-50 px-3 py-2 text-sm text-blue-900">
-        💡 Your projects ARE your experience. Add every significant one.
+        💡 Your projects ARE your experience. Add every significant one — most-relevant first.
       </div>
       {projects.map((p, i) => (
         <div key={i} className="rounded-lg border border-slate-200 p-4">
+          <ItemHeader idx={i} total={projects.length} onMoveUp={() => update(swap(projects, i, i - 1))} onMoveDown={() => update(swap(projects, i, i + 1))} onRemove={() => update(projects.filter((_, j) => j !== i))} />
           <div className="grid gap-3 md:grid-cols-2">
             <input className="input" placeholder="Project name" value={p.name} onChange={(e) => { const n = [...projects]; n[i] = { ...p, name: e.target.value }; update(n); }} />
             <input className="input" placeholder="Live URL (optional)" value={p.url ?? ""} onChange={(e) => { const n = [...projects]; n[i] = { ...p, url: e.target.value }; update(n); }} />
@@ -305,10 +306,33 @@ function ProjectsEditor({ content, setContent, userType, targetRole }: { content
             singleLine
           />
           <TagInput label="Technologies" value={p.technologies ?? []} onChange={(tags) => { const n = [...projects]; n[i] = { ...p, technologies: tags }; update(n); }} />
-          <button className="mt-3 text-sm text-red-500 hover:underline" onClick={() => update(projects.filter((_, j) => j !== i))}>Remove</button>
         </div>
       ))}
       <button className="btn-secondary" onClick={() => update([...projects, { name: "", description: "", technologies: [] }])}>+ Add project</button>
+    </div>
+  );
+}
+
+function swap<T>(arr: T[], i: number, j: number): T[] {
+  if (j < 0 || j >= arr.length) return arr;
+  const next = arr.slice();
+  [next[i], next[j]] = [next[j], next[i]];
+  return next;
+}
+
+function ItemHeader({ idx, total, onMoveUp, onMoveDown, onRemove }: { idx: number; total: number; onMoveUp: () => void; onMoveDown: () => void; onRemove: () => void }) {
+  return (
+    <div className="mb-3 flex items-center justify-between">
+      <div className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Item {idx + 1} of {total}</div>
+      <div className="flex items-center gap-1">
+        <button type="button" disabled={idx === 0} onClick={onMoveUp} className="rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30" title="Move up" aria-label="Move up">
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path d="M10 4l6 6-1.41 1.41L10 6.83 5.41 11.41 4 10z"/></svg>
+        </button>
+        <button type="button" disabled={idx === total - 1} onClick={onMoveDown} className="rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30" title="Move down" aria-label="Move down">
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path d="M10 16l-6-6 1.41-1.41L10 13.17l4.59-4.58L16 10z"/></svg>
+        </button>
+        <button type="button" onClick={onRemove} className="ml-2 text-xs text-red-500 hover:underline">Remove</button>
+      </div>
     </div>
   );
 }
@@ -321,6 +345,7 @@ function ExperiencesEditor({ content, setContent, userType, targetRole }: { cont
     <div className="space-y-4">
       {exps.map((e, i) => (
         <div key={i} className="rounded-lg border border-slate-200 p-4">
+          <ItemHeader idx={i} total={exps.length} onMoveUp={() => update(swap(exps, i, i - 1))} onMoveDown={() => update(swap(exps, i, i + 1))} onRemove={() => update(exps.filter((_, j) => j !== i))} />
           <div className="grid gap-3 md:grid-cols-2">
             <input className="input" placeholder="Job title" value={e.title} onChange={(ev) => { const n = [...exps]; n[i] = { ...e, title: ev.target.value }; update(n); }} />
             <input className="input" placeholder="Company" value={e.company} onChange={(ev) => { const n = [...exps]; n[i] = { ...e, company: ev.target.value }; update(n); }} />
@@ -335,7 +360,6 @@ function ExperiencesEditor({ content, setContent, userType, targetRole }: { cont
             targetRole={targetRole}
           />
           <TagInput label="Technologies / tools" value={e.technologies ?? []} onChange={(t) => { const n = [...exps]; n[i] = { ...e, technologies: t }; update(n); }} />
-          <button className="mt-3 text-sm text-red-500 hover:underline" onClick={() => update(exps.filter((_, j) => j !== i))}>Remove</button>
         </div>
       ))}
       <button className="btn-secondary" onClick={() => update([...exps, { company: "", title: "", bullets: [], technologies: [] }])}>+ Add experience</button>
@@ -350,6 +374,7 @@ function EducationTab({ content, setContent }: { content: ResumeContent; setCont
     <div className="space-y-4">
       {eds.map((e, i) => (
         <div key={i} className="rounded-lg border border-slate-200 p-4">
+          <ItemHeader idx={i} total={eds.length} onMoveUp={() => update(swap(eds, i, i - 1))} onMoveDown={() => update(swap(eds, i, i + 1))} onRemove={() => update(eds.filter((_, j) => j !== i))} />
           <div className="grid gap-3 md:grid-cols-2">
             <input className="input" placeholder="Degree" value={e.degree} onChange={(ev) => { const n = [...eds]; n[i] = { ...e, degree: ev.target.value }; update(n); }} />
             <input className="input" placeholder="Institution" value={e.institution} onChange={(ev) => { const n = [...eds]; n[i] = { ...e, institution: ev.target.value }; update(n); }} />
@@ -358,7 +383,6 @@ function EducationTab({ content, setContent }: { content: ResumeContent; setCont
             <input className="input" placeholder="Start year" value={e.start_year ?? ""} onChange={(ev) => { const n = [...eds]; n[i] = { ...e, start_year: ev.target.value }; update(n); }} />
             <input className="input" placeholder="End year" value={e.end_year ?? ""} onChange={(ev) => { const n = [...eds]; n[i] = { ...e, end_year: ev.target.value }; update(n); }} />
           </div>
-          <button className="mt-3 text-sm text-red-500 hover:underline" onClick={() => update(eds.filter((_, j) => j !== i))}>Remove</button>
         </div>
       ))}
       <button className="btn-secondary" onClick={() => update([...eds, { degree: "", institution: "", field: "" }])}>+ Add education</button>
