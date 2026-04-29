@@ -2,7 +2,10 @@ import Link from "next/link";
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-navy text-white">
+    <div className="relative min-h-screen text-white">
+      {/* Fixed colorful wallpaper — stays in place while content scrolls over it */}
+      <div className="fixed inset-0 -z-10 bg-navy bg-hero-mesh" aria-hidden="true" />
+
       <Nav />
       <Hero />
       <TrustedBy />
@@ -21,7 +24,7 @@ export default function LandingPage() {
 
 function Nav() {
   return (
-    <header className="sticky top-0 z-30 border-b border-white/10 bg-navy/80 backdrop-blur">
+    <header className="sticky top-0 z-30 border-b border-white/10 bg-navy/70 backdrop-blur-xl">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
         <Link href="/" className="flex items-center gap-2 font-display text-xl font-bold">
           <span className="inline-block h-7 w-7 rounded-md bg-gradient-to-br from-brand to-gold" />
@@ -44,7 +47,7 @@ function Nav() {
 
 function Hero() {
   return (
-    <section className="relative overflow-hidden bg-hero-mesh">
+    <section className="relative overflow-hidden">
       <div className="mx-auto grid max-w-6xl items-center gap-10 px-6 py-20 md:grid-cols-2 md:py-28">
         <div className="fade-in">
           <span className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/80">
@@ -87,7 +90,7 @@ function Hero() {
 function TrustedBy() {
   const logos = ["Google", "Meta", "Stripe", "Airbnb", "Notion", "Vercel", "Linear", "Spotify"];
   return (
-    <section className="border-y border-white/5 bg-white/[0.015] py-10">
+    <section className="border-y border-white/5 bg-navy/60 backdrop-blur-sm py-10">
       <div className="mx-auto max-w-6xl px-6">
         <div className="text-center text-xs uppercase tracking-widest text-white/40">
           Hires landed at
@@ -108,7 +111,8 @@ function TrustedBy() {
 
 function UserTypes() {
   return (
-    <section id="how" className="mx-auto max-w-6xl px-6 py-20">
+    <section id="how" className="bg-navy/80 backdrop-blur-sm">
+      <div className="mx-auto max-w-6xl px-6 py-20">
       <SectionHeader eyebrow="Who is this for" title="Built for Every Stage of Your Career" />
       <div className="mt-12 grid gap-6 md:grid-cols-3">
         <UserTypeCard
@@ -137,13 +141,15 @@ function UserTypes() {
           cta="Start as Professional"
         />
       </div>
+      </div>
     </section>
   );
 }
 
 function AiDemo() {
   return (
-    <section className="mx-auto max-w-6xl px-6 py-16">
+    <section className="bg-navy/80 backdrop-blur-sm">
+      <div className="mx-auto max-w-6xl px-6 py-16">
       <SectionHeader eyebrow="See the AI in action" title="From Boring Bullet to Interview-Ready" />
       <div className="mt-12 grid gap-4 md:grid-cols-3">
         <DemoCard
@@ -188,6 +194,7 @@ function AiDemo() {
           </ul>
         </DemoCard>
       </div>
+      </div>
     </section>
   );
 }
@@ -208,7 +215,7 @@ function DemoCard({ step, label, color, textColor, accent, children }: {
 
 function HowItWorks() {
   return (
-    <section className="py-20">
+    <section className="bg-navy/80 backdrop-blur-sm py-20">
       <div className="mx-auto max-w-6xl px-6">
         <SectionHeader eyebrow="How it works" title="Three Steps to Your Perfect Resume" />
         <div className="mt-12 grid gap-6 md:grid-cols-3">
@@ -223,7 +230,8 @@ function HowItWorks() {
 
 function Features() {
   return (
-    <section id="features" className="mx-auto max-w-6xl px-6 py-20">
+    <section id="features" className="bg-navy/80 backdrop-blur-sm">
+      <div className="mx-auto max-w-6xl px-6 py-20">
       <SectionHeader eyebrow="Features" title="Everything You Need, Nothing You Don't" />
       <div className="mt-12 grid gap-5 md:grid-cols-3 md:auto-rows-fr">
         <BentoCard
@@ -237,6 +245,7 @@ function Features() {
         <BentoCard icon="📐" title="Multiple Templates" body="Modern, classic, and executive layouts." />
         <BentoCard icon="📄" title="PDF + DOCX Export" body="Print-ready PDF and editable DOCX formats." />
         <BentoCard icon="🔒" title="Privacy First" body="Encrypted at rest. Your data is yours." />
+      </div>
       </div>
     </section>
   );
@@ -279,7 +288,7 @@ function Testimonials() {
   ];
 
   return (
-    <section className="py-20">
+    <section className="bg-navy/80 backdrop-blur-sm py-20">
       <div className="mx-auto max-w-6xl px-6">
         <SectionHeader eyebrow="Testimonials" title="Loved by Job Seekers Worldwide" />
         <div className="mt-12 grid gap-5 md:grid-cols-3">
@@ -308,7 +317,7 @@ function Testimonials() {
 
 function Pricing() {
   return (
-    <section id="pricing" className="py-20">
+    <section id="pricing" className="bg-navy/80 backdrop-blur-sm py-20">
       <div className="mx-auto max-w-6xl px-6">
         <SectionHeader eyebrow="Pricing" title="Simple, Transparent Pricing" />
         <p className="mt-3 text-center text-sm text-white/60">No credit card required to start. Upgrade anytime.</p>
@@ -326,7 +335,8 @@ function Pricing() {
 
 function Faq() {
   return (
-    <section id="faq" className="mx-auto max-w-3xl px-6 py-20">
+    <section id="faq" className="bg-navy/80 backdrop-blur-sm">
+      <div className="mx-auto max-w-3xl px-6 py-20">
       <SectionHeader eyebrow="FAQ" title="Frequently Asked Questions" />
       <div className="mt-10 space-y-3">
         <FaqItem q="Is my data private and secure?" a="Yes. All data is stored encrypted at rest, behind row-level security in Supabase. We never share or sell your information." />
@@ -335,6 +345,7 @@ function Faq() {
         <FaqItem q="How many resumes can I create?" a="Free plan: 1 resume. Paid plans: 3, 5, or unlimited. You can also duplicate any resume to tailor for a different role." />
         <FaqItem q="What formats can I download?" a="High-quality PDF (print-ready, ATS-friendly), editable DOCX, and plain TXT for systems that reject formatted files." />
         <FaqItem q="Do you offer refunds?" a="Yes — 7-day no-questions refund on all paid plans." />
+      </div>
       </div>
     </section>
   );
@@ -355,7 +366,7 @@ function FinalCta() {
 
 function Footer() {
   return (
-    <footer className="border-t border-white/10 bg-navy">
+    <footer className="border-t border-white/10 bg-navy/90 backdrop-blur-sm">
       <div className="mx-auto max-w-6xl px-6 py-12">
         <div className="grid gap-8 md:grid-cols-4">
           <div>
