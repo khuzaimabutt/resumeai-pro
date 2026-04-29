@@ -6,6 +6,7 @@ import RegenerateButton from "@/components/regenerate-button";
 import AtsScoreRing from "@/components/ats-score-ring";
 import ImprovementTips from "@/components/improvement-tips";
 import PreviewActions from "@/components/preview-actions";
+import CoverLetter from "@/components/cover-letter";
 import type { GeneratedResume } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -64,6 +65,8 @@ export default async function PreviewPage({
         </div>
 
         <PreviewActions id={resume.id} defaultTemplate={tpl} />
+
+        <CoverLetter resumeId={resume.id} defaultRole={resume.target_role ?? ""} />
 
         <RegenerateButton id={resume.id} />
 

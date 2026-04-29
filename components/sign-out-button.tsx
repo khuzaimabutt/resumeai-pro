@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 
 export default function SignOutButton() {
@@ -10,12 +11,14 @@ export default function SignOutButton() {
       onClick={async () => {
         const supabase = createClient();
         await supabase.auth.signOut();
+        toast.success("Signed out");
         router.push("/");
         router.refresh();
       }}
-      className="text-xs text-slate-500 hover:text-slate-900"
+      className="flex w-full items-center justify-between rounded px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900"
     >
-      Sign out
+      <span>Sign out</span>
+      <span aria-hidden="true">↗</span>
     </button>
   );
 }
