@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import NewResumeButton from "@/components/new-resume-button";
 import DashboardResumes from "@/components/dashboard-resumes";
+import OnboardingTour from "@/components/onboarding-tour";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,8 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-8">
+      <OnboardingTour shouldShow={list.length === 0} />
+
       {/* Welcome */}
       <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
         <div>

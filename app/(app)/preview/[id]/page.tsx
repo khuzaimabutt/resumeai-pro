@@ -7,6 +7,7 @@ import AtsScoreRing from "@/components/ats-score-ring";
 import ImprovementTips from "@/components/improvement-tips";
 import PreviewActions from "@/components/preview-actions";
 import CoverLetter from "@/components/cover-letter";
+import JobMatch from "@/components/job-match";
 import type { GeneratedResume } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -65,6 +66,8 @@ export default async function PreviewPage({
         </div>
 
         <PreviewActions id={resume.id} defaultTemplate={tpl} />
+
+        <JobMatch resumeId={resume.id} />
 
         <CoverLetter resumeId={resume.id} defaultRole={resume.target_role ?? ""} />
 
